@@ -1,0 +1,17 @@
+{
+  "uuid": "365d33dc-f4f8-4fc1-93cb-48caa6661485",
+  "shortName": "moonface",
+  "longName": "moonface",
+  "companyName": "Husobee LLC",
+  "versionCode": 1,
+  "versionLabel": "1.0",
+  "watchapp": {
+    "watchface": true
+  },
+  "appKeys": {
+    "dummy": 0
+  },
+  "resources": {
+    "media": []
+  }
+}
