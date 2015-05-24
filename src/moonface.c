@@ -36,6 +36,13 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_fill_circle(ctx, center, 65);
 
+    // Get the center of the screen (non full-screen)
+    GPoint e_center = GPoint(bounds.size.w / 2+20, (bounds.size.h / 2));
+
+    // make our moon circle in our canvas layer
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_fill_circle(ctx, e_center, 65);
+
 }
 
 // setup our main window on load
