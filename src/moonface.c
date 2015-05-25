@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <math.h>
 
 typedef struct {
   int hours;
@@ -22,6 +23,16 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
   }
 }
 
+
+// haha, can't compile in libm.a i guess, lets make our own sqrt function.
+long double mysqrt(long double t) {
+    long double r = t/2;
+    for ( int i = 0; i < 10; i++ ) {
+        r = (r+t/r)/2;
+    }
+    return r;
+}
+
 // setup our main canvas
 static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     GRect bounds = layer_get_bounds(this_layer);
@@ -36,13 +47,18 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_fill_circle(ctx, center, 65);
 
-    // Get the center of the screen (non full-screen)
-    GPoint e_center = GPoint(bounds.size.w / 2+20, (bounds.size.h / 2));
+    // we are going to make strokes line by line down the Y axis to make our dark side
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    int y;
+    for (y=-64; y<=64;y++){
+        // here lets practice doing 8th grade math...
+        int32_t x = floor(mysqrt(64*64-y*y));
 
-    // make our moon circle in our canvas layer
-    graphics_context_set_fill_color(ctx, GColorBlack);
-    graphics_fill_circle(ctx, e_center, 65);
+        GPoint start_1 = GPoint(center.x-x,center.y+y);
+        GPoint end_1 = GPoint(center.x+x, center.y+y);
 
+        graphics_draw_line(ctx, start_1, end_1);
+    }
 }
 
 // setup our main window on load
