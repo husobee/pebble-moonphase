@@ -24,6 +24,53 @@ static void tick_handler(struct tm *tick_time, TimeUnits changed) {
 }
 
 
+int julian_date(int d, int m, int y)
+{ 
+    int mm, yy;
+    int k1, k2, k3;
+    int j;
+
+    yy = y - (int)((12 - m) / 10);
+    mm = m + 9;
+    if (mm >= 12)
+    {
+        mm = mm - 12;
+    }
+    k1 = (int)(365.25 * (yy + 4712));
+    k2 = (int)(30.6001 * mm + 0.5);
+    k3 = (int)((int)((yy / 100) + 49) * 0.75) - 38;
+    // 'j' for dates in Julian calendar:
+    j = k1 + k2 + d + 59;
+    if (j > 2299160)
+    {
+        // For Gregorian calendar:
+        j = j - k3; // 'j' is the Julian date at 12h UT (Universal Time)
+    }
+    return j;
+}
+
+double approximate_moon_phase(int j) {
+    double ip = (j+4.867)/29.53059;
+    ip = ip - floor(ip);
+    return ip;
+}
+
+double moon_age(int d, int m, int y)
+{
+    int j = julian_date(d, m, y);
+    double ag = 0;
+    //Calculate the approximate phase of the moon
+    double ip = approximate_moon_phase(j);
+    if(ip < 0.5)
+        ag = ip * 29.53059 + 29.53059 / 2;
+    else
+        ag = ip * 29.53059 - 29.53059 / 2;
+    // Moon's age in days
+    ag = floor(ag) + 1;
+    return ag;
+}
+
+
 // haha, can't compile in libm.a i guess, lets make our own sqrt function.
 long double mysqrt(long double t) {
     long double r = t/2;
@@ -48,7 +95,6 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     graphics_fill_circle(ctx, center, 65);
 
     // we are going to make strokes line by line down the Y axis to make our dark side
-    graphics_context_set_stroke_color(ctx, GColorBlack);
     int y;
     for (y=-64; y<=64;y++){
         // here lets practice doing 8th grade math...
@@ -56,8 +102,40 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
 
         GPoint start_1 = GPoint(center.x-x,center.y+y);
         GPoint end_1 = GPoint(center.x+x, center.y+y);
-
+        // color entire swath black first line
+        graphics_context_set_stroke_color(ctx, GColorBlack);
         graphics_draw_line(ctx, start_1, end_1);
+
+
+        // figure out today's moon phase
+        double Rpos = 2 * x;
+        time_t now = time(NULL);
+        struct tm *t = localtime(&now);
+
+        double phase = approximate_moon_phase(julian_date(t->tm_mday,t->tm_mon+1,t->tm_year+1900));
+        double Xpos1;
+        double Xpos2;
+        // figure out shading.
+        if (phase < 0.5)
+        {
+           Xpos1 = - x;
+           Xpos2 = (int)(Rpos - 2*phase*Rpos - x);
+        }
+        else
+        {
+          Xpos1 = x;
+          Xpos2 = (int)(x - 2*phase*Rpos + Rpos);
+        }
+
+        graphics_context_set_stroke_color(ctx, GColorWhite);
+
+        GPoint start_2 = GPoint(center.x+Xpos1,center.y-y);
+        GPoint end_2 = GPoint(center.x+Xpos2, center.y-y);
+        GPoint start_3 = GPoint(center.x+Xpos1,center.y+y);
+        GPoint end_3 = GPoint(center.x+Xpos2, center.y+y);
+
+        graphics_draw_line(ctx, start_2, end_2);
+        graphics_draw_line(ctx, start_3, end_3);
     }
 }
 
