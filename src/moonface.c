@@ -95,6 +95,10 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     graphics_fill_circle(ctx, center, 65);
 
     // we are going to make strokes line by line down the Y axis to make our dark side
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+
+    double phase = approximate_moon_phase(julian_date(t->tm_mday,t->tm_mon+1,t->tm_year+1900));
     int y;
     for (y=-64; y<=64;y++){
         // here lets practice doing 8th grade math...
@@ -109,10 +113,6 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
 
         // figure out today's moon phase
         double Rpos = 2 * x;
-        time_t now = time(NULL);
-        struct tm *t = localtime(&now);
-
-        double phase = approximate_moon_phase(julian_date(t->tm_mday,t->tm_mon+1,t->tm_year+1900));
         double Xpos1;
         double Xpos2;
         // figure out shading.
