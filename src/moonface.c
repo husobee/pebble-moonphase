@@ -9,7 +9,6 @@ typedef struct {
 static Window *window;
 static TextLayer *time_layer;
 static TextLayer *date_layer;
-static TextLayer *tide_layer;
 static Layer *canvas_layer;
 static Time last_time;
 
@@ -74,7 +73,7 @@ int julian_date(int d, int m, int y)
 }
 
 double approximate_moon_phase(int j) {
-    double ip = (j+4.867)/29.53059;
+    double ip = (j+5.867)/29.53059;
     ip = ip - floor(ip);
     return ip;
 }
@@ -97,7 +96,7 @@ double moon_age(int d, int m, int y)
 // haha, can't compile in libm.a i guess, lets make our own sqrt function.
 long double mysqrt(long double t) {
     long double r = t/2;
-    for ( int i = 0; i < 10; i++ ) {
+    for ( int i = 0; i < 20; i++ ) {
         r = (r+t/r)/2;
     }
     return r;
@@ -111,14 +110,7 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     graphics_fill_rect(ctx, GRect(0, 0, bounds.size.w, bounds.size.h), 0, GColorBlack);
 
     // Get the center of the screen (non full-screen)
-    GPoint center = GPoint(bounds.size.w / 2 + 15, (bounds.size.h / 2-30));
-
-    // tide bar
-    graphics_context_set_stroke_color(ctx, GColorWhite);
-    graphics_draw_line(ctx, GPoint(0, center.y-45), GPoint(10, center.y-45 ));
-    graphics_draw_line(ctx, GPoint(0, center.y+45), GPoint(10, center.y+45 ));
-    graphics_context_set_fill_color(ctx, GColorWhite);
-    graphics_fill_circle(ctx, GPoint(6, center.y), 5);
+    GPoint center = GPoint(bounds.size.w / 2, (bounds.size.h / 2-30));
 
     // make our moon circle in our canvas layer
     graphics_context_set_fill_color(ctx, GColorWhite);
@@ -194,12 +186,6 @@ static void window_load(Window *window) {
     text_layer_set_text_color(date_layer, GColorWhite);
     text_layer_set_text(date_layer, "01/01/1970");
 
-    // Create tide TextLayer
-    tide_layer = text_layer_create(GRect(0, 0, 60, 14));
-    text_layer_set_background_color(tide_layer, GColorClear);
-    text_layer_set_text_color(tide_layer, GColorWhite);
-    text_layer_set_text(tide_layer, "    Tide: 00m");
-
     // Improve the layout to be more like a watchface
     text_layer_set_font(time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
     text_layer_set_text_alignment(time_layer, GTextAlignmentCenter);
@@ -207,13 +193,9 @@ static void window_load(Window *window) {
     text_layer_set_font(date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
     text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
 
-    text_layer_set_font(tide_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-    text_layer_set_text_alignment(tide_layer, GTextAlignmentCenter);
-
     // Add it as a child layer to the Window's root layer
     layer_add_child(window_get_root_layer(window), text_layer_get_layer(time_layer));
     layer_add_child(window_get_root_layer(window), text_layer_get_layer(date_layer));
-    layer_add_child(window_get_root_layer(window), text_layer_get_layer(tide_layer));
 }
 
 static void window_unload(Window *window) {
@@ -221,7 +203,6 @@ static void window_unload(Window *window) {
     layer_destroy(canvas_layer);
     text_layer_destroy(time_layer);
     text_layer_destroy(date_layer);
-    text_layer_destroy(tide_layer);
 }
 
 static void init(void) {
