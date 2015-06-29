@@ -7,25 +7,49 @@ typedef struct {
 } Time;
 
 static Window *window;
+static TextLayer *time_layer;
+static TextLayer *date_layer;
+static TextLayer *tide_layer;
 static Layer *canvas_layer;
 static Time last_time;
 
+
+static void update_time() {
+  // Get a tm structure
+  time_t temp = time(NULL); 
+  struct tm *tick_time = localtime(&temp);
+
+  // Create a long-lived buffer
+  static char date_buffer[] = "01/01/70";
+  // Create a long-lived buffer
+  static char buffer[] = "00:00";
+
+  // Write the current hours and minutes into the buffer
+  if(clock_is_24h_style() == true) {
+    // Use 24 hour format
+    strftime(buffer, sizeof("00:00"), "%H:%M", tick_time);
+  } else {
+    // Use 12 hour format
+    strftime(buffer, sizeof("00:00"), "%I:%M", tick_time);
+  }
+
+  strftime(date_buffer, sizeof("01/01/70"), "%m/%d/%y", tick_time);
+  // Display this time on the TextLayer
+  text_layer_set_text(date_layer, date_buffer);
+  text_layer_set_text(time_layer, buffer);
+}
+
 // on tick handler
 static void tick_handler(struct tm *tick_time, TimeUnits changed) {
-  // Store time
-  last_time.hours = tick_time->tm_hour;
-  last_time.hours -= (last_time.hours > 10) ? 12 : 0;
-  last_time.minutes = tick_time->tm_min;
-
-  // Redraw
-  if(canvas_layer) {
-    layer_mark_dirty(canvas_layer);
-  }
+    update_time();
+    if (canvas_layer) {
+        layer_mark_dirty(canvas_layer);
+    }
 }
 
 
 int julian_date(int d, int m, int y)
-{ 
+{
     int mm, yy;
     int k1, k2, k3;
     int j;
@@ -70,7 +94,6 @@ double moon_age(int d, int m, int y)
     return ag;
 }
 
-
 // haha, can't compile in libm.a i guess, lets make our own sqrt function.
 long double mysqrt(long double t) {
     long double r = t/2;
@@ -88,11 +111,18 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
     graphics_fill_rect(ctx, GRect(0, 0, bounds.size.w, bounds.size.h), 0, GColorBlack);
 
     // Get the center of the screen (non full-screen)
-    GPoint center = GPoint(bounds.size.w / 2, (bounds.size.h / 2));
+    GPoint center = GPoint(bounds.size.w / 2 + 15, (bounds.size.h / 2-30));
+
+    // tide bar
+    graphics_context_set_stroke_color(ctx, GColorWhite);
+    graphics_draw_line(ctx, GPoint(0, center.y-45), GPoint(10, center.y-45 ));
+    graphics_draw_line(ctx, GPoint(0, center.y+45), GPoint(10, center.y+45 ));
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_fill_circle(ctx, GPoint(6, center.y), 5);
 
     // make our moon circle in our canvas layer
     graphics_context_set_fill_color(ctx, GColorWhite);
-    graphics_fill_circle(ctx, center, 65);
+    graphics_fill_circle(ctx, center, 45);
 
     // we are going to make strokes line by line down the Y axis to make our dark side
     time_t now = time(NULL);
@@ -100,9 +130,9 @@ static void canvas_update_proc(Layer *this_layer, GContext *ctx) {
 
     double phase = approximate_moon_phase(julian_date(t->tm_mday,t->tm_mon+1,t->tm_year+1900));
     int y;
-    for (y=-64; y<=64;y++){
+    for (y=-44; y<=44;y++){
         // here lets practice doing 8th grade math...
-        int32_t x = floor(mysqrt(64*64-y*y));
+        int32_t x = floor(mysqrt(44*44-y*y));
 
         GPoint start_1 = GPoint(center.x-x,center.y+y);
         GPoint end_1 = GPoint(center.x+x, center.y+y);
@@ -152,21 +182,51 @@ static void window_load(Window *window) {
     layer_add_child(window_layer, canvas_layer);
     // Set the update_proc
     layer_set_update_proc(canvas_layer, canvas_update_proc);
+    
+    // Create time TextLayer
+    time_layer = text_layer_create(GRect(0, 115, 144, 110));
+    text_layer_set_background_color(time_layer, GColorClear);
+    text_layer_set_text_color(time_layer, GColorWhite);
+    text_layer_set_text(time_layer, "00:00");
+
+    date_layer = text_layer_create(GRect(0, 105, 144, 100));
+    text_layer_set_background_color(date_layer, GColorClear);
+    text_layer_set_text_color(date_layer, GColorWhite);
+    text_layer_set_text(date_layer, "01/01/1970");
+
+    // Create tide TextLayer
+    tide_layer = text_layer_create(GRect(0, 0, 60, 14));
+    text_layer_set_background_color(tide_layer, GColorClear);
+    text_layer_set_text_color(tide_layer, GColorWhite);
+    text_layer_set_text(tide_layer, "    Tide: 00m");
+
+    // Improve the layout to be more like a watchface
+    text_layer_set_font(time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+    text_layer_set_text_alignment(time_layer, GTextAlignmentCenter);
+
+    text_layer_set_font(date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+    text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
+
+    text_layer_set_font(tide_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+    text_layer_set_text_alignment(tide_layer, GTextAlignmentCenter);
+
+    // Add it as a child layer to the Window's root layer
+    layer_add_child(window_get_root_layer(window), text_layer_get_layer(time_layer));
+    layer_add_child(window_get_root_layer(window), text_layer_get_layer(date_layer));
+    layer_add_child(window_get_root_layer(window), text_layer_get_layer(tide_layer));
 }
 
 static void window_unload(Window *window) {
     // remove our canvas_layer from the window on unload.
     layer_destroy(canvas_layer);
+    text_layer_destroy(time_layer);
+    text_layer_destroy(date_layer);
+    text_layer_destroy(tide_layer);
 }
 
 static void init(void) {
-    srand(time(NULL));
-
-    // create a time from the localtime at initialization
-    time_t t = time(NULL);
-    struct tm *time_now = localtime(&t);
-    // set our tick handler to have the current time
-    tick_handler(time_now, MINUTE_UNIT);
+    // subscribe our tick handler to minutes
+    tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 
     // create our "window" on the watch
     window = window_create();
@@ -179,7 +239,9 @@ static void init(void) {
     const bool animated = true;
     // push the window on the window stack
     window_stack_push(window, animated);
+    update_time();
 }
+
 
 static void deinit(void) {
     //destroy our window
