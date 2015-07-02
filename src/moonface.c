@@ -73,7 +73,7 @@ int julian_date(int d, int m, int y)
 }
 
 double approximate_moon_phase(int j) {
-    double ip = (j+5.867)/29.53059;
+    double ip = (j+4.867)/29.53059;
     ip = ip - floor(ip);
     return ip;
 }
